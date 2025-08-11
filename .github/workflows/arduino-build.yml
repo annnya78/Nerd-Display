@@ -5,13 +5,11 @@ on:
     branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
-  # optional: bei Tags (Releases) auch bauen
   workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -19,13 +17,14 @@ jobs:
       - name: Setup Arduino CLI (pinned)
         uses: arduino/setup-arduino-cli@v1
         with:
-          version: 0.34.2   # <- feste Version, verhindert "unable to get latest version"
+          version: 0.34.2
 
-      - name: Prepare Arduino CLI
+      - name: Configure Boards Manager (ESP8266) & install core
         run: |
           arduino-cli config init
+          arduino-cli config set board_manager.additional_urls https://arduino.esp8266.com/stable/package_esp8266com_index.json
           arduino-cli core update-index
-          arduino-cli core install esp8266:esp8266
+          arduino-cli core install esp8266:esp8266@3.1.2
 
       - name: Install Libraries
         run: |
@@ -34,7 +33,6 @@ jobs:
           arduino-cli lib install "PubSubClient"
           arduino-cli lib install "ArduinoJson"
           arduino-cli lib install "WiFiManager"
-          # LittleFS kommt beim ESP8266-Core mit; extra Lib ist nicht nötig
 
       - name: Compile (AZDelivery D1 mini)
         run: |
@@ -48,19 +46,3 @@ jobs:
         with:
           name: firmware-d1mini
           path: build/*
-
-  # Optionaler Job: bei Tags automatisch Release mit BIN anlegen
-  release:
-    if: startsWith(github.ref, 'refs/tags/')
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - name: Download artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: firmware-d1mini
-          path: dist
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          files: dist/*
