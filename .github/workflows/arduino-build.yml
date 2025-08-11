@@ -1,0 +1,41 @@
+name: Build Nerd-Display (ESP8266)
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Arduino CLI
+        uses: arduino/setup-arduino-cli@v1
+        with:
+          version: latest
+
+      - name: Install ESP8266 Core
+        run: |
+          arduino-cli config init
+          arduino-cli core update-index
+          arduino-cli core install esp8266:esp8266
+
+      - name: Install Libraries
+        run: |
+          arduino-cli lib install "MD_Parola"
+          arduino-cli lib install "MD_MAX72XX"
+          arduino-cli lib install "PubSubClient"
+          arduino-cli lib install "ArduinoJson"
+          arduino-cli lib install "WiFiManager"
+          arduino-cli lib install "LittleFS"
+
+      - name: Compile Sketch
+        run: |
+          arduino-cli compile \
+            --fqbn esp8266:esp8266:nodemcuv2 \
+            ./NerdDisplay.ino
