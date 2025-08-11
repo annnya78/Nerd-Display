@@ -1,0 +1,22 @@
+# Arduino / VSCode / Temp
+*.code-workspace
+.vscode/
+.vs/
+.idea/
+*.log
+*.tmp
+*.bak
+
+# PlatformIO (falls du später umsteigst)
+.pio/
+
+# Build-Ordner (Arduino IDE 2 legt ihn außerhalb ab, zur Sicherheit trotzdem)
+build/
+cmake-build-*/
+
+# Secrets / lokale Config-Beispiele
+config.json
+*.pem
+*.cer
+*.key
+*.pkcs8
