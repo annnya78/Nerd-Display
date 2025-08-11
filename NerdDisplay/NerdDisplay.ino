@@ -4,6 +4,9 @@
 */
 
 #include <Arduino.h>
+#include <SPI.h>
+#include <MD_Parola.h>
+
 #include <ESP8266WiFi.h>
 #include <ESP8266mDNS.h>
 #include <LittleFS.h>

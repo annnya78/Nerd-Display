@@ -28,12 +28,12 @@ jobs:
 
       - name: Install Libraries
         run: |
-          mkdir -p $GITHUB_WORKSPACE/libraries
-          arduino-cli lib install --library-path $GITHUB_WORKSPACE/libraries "MD_Parola"
-          arduino-cli lib install --library-path $GITHUB_WORKSPACE/libraries "MD_MAX72XX"
-          arduino-cli lib install --library-path $GITHUB_WORKSPACE/libraries "PubSubClient"
-          arduino-cli lib install --library-path $GITHUB_WORKSPACE/libraries "ArduinoJson"
-          arduino-cli lib install --library-path $GITHUB_WORKSPACE/libraries "WiFiManager"
+          arduino-cli lib install "MD_Parola"
+          arduino-cli lib install "MD_MAX72XX"
+          arduino-cli lib install "PubSubClient"
+          arduino-cli lib install "ArduinoJson"
+          arduino-cli lib install "WiFiManager"
+
 
       - name: Compile (AZDelivery D1 mini)
         run: |
