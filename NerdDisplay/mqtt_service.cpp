@@ -86,59 +86,82 @@ namespace {
       ackEchoStateStr("effect_out", App::params.effect_out);
       return;
     }
-    // text
+    // --- TEXT: String | {"text":""} | ["a","b"] | {"messages":[...]} | [{"text":"", "in":"", "out":"", "dwell":1234}, ...]
     if (t.endsWith("/set/text")) {
       if (raw.length() == 0) return;
 
       App::params.messages.clear();
 
-      // Einmaliges JSON-Dokument für alle Varianten
-      DynamicJsonDocument doc(768);
+      DynamicJsonDocument doc(1536);
       DeserializationError err = deserializeJson(doc, raw);
+
+      // text + in/out + dwell (ms, -1 => global)
+      auto pushSingle = [&](const String& txt, const String& in, const String& out, int32_t dwellMs) {
+        String s = txt; s.trim();
+        if (!s.length()) return;
+        App::params.messages.push_back( MessageItem{ s, in, out, dwellMs } );
+      };
+
       if (!err) {
         if (doc.is<JsonArray>()) {
-          // Payload: ["Hallo","Zebra",...]
+          // Entweder Array<String> oder Array<Object>
           for (JsonVariant v : doc.as<JsonArray>()) {
-            String item = v.as<String>(); item.trim();
-            if (item.length()) App::params.messages.push_back(item);
+            if (v.is<const char*>()) {
+              pushSingle(String(v.as<const char*>()), "", "", -1);
+            } else if (v.is<JsonObject>()) {
+              String txt = v["text"] | "";
+              String ein = v["in"]   | "";
+              String eout= v["out"]  | "";
+              int32_t d  = (int32_t)(v["dwell"] | -1);
+              pushSingle(txt, ein, eout, d);
+            }
           }
-        } else if (doc.is<JsonObject>() && doc["messages"].is<JsonArray>()) {
-          // Payload: {"messages":["Hallo","Zebra"]}
-          for (JsonVariant v : doc["messages"].as<JsonArray>()) {
-            String item = v.as<String>(); item.trim();
-            if (item.length()) App::params.messages.push_back(item);
+        } else if (doc.is<JsonObject>()) {
+          if (doc["messages"].is<JsonArray>()) {
+            for (JsonVariant v : doc["messages"].as<JsonArray>()) {
+              if (v.is<const char*>()) {
+                pushSingle(String(v.as<const char*>()), "", "", -1);
+              } else if (v.is<JsonObject>()) {
+                String txt = v["text"] | "";
+                String ein = v["in"]   | "";
+                String eout= v["out"]  | "";
+                int32_t d  = (int32_t)(v["dwell"] | -1);
+                pushSingle(txt, ein, eout, d);
+              }
+            }
+          } else if (doc["text"].is<const char*>()) {
+            String txt = doc["text"].as<const char*>();
+            String ein = doc["in"]   | "";
+            String eout= doc["out"]  | "";
+            int32_t d  = (int32_t)(doc["dwell"] | -1);
+            pushSingle(txt, ein, eout, d);
           }
-        } else if (doc.is<JsonObject>() && doc["text"].is<const char*>()) {
-          // Payload: {"text":"Hallo"}
-          String s = String((const char*)doc["text"]); s.trim();
-          if (s.length()) App::params.messages.push_back(s);
         }
       }
 
-      // Fallback: Plain-String (inkl. evtl. umschließender Anführungszeichen)
+      // Fallback: Plain-String
       if (App::params.messages.empty()) {
         String s = raw;
         if (s.length() >= 2 && s.startsWith("\"") && s.endsWith("\"")) {
           s = s.substring(1, s.length() - 1);
         }
         if (!s.length()) s = "Nerd-Display";
-        App::params.messages.push_back(s);
+        pushSingle(s, "", "", -1);
       }
 
-      // Animation neu starten
+      // Neustarten
       App::msgIndex = 0;
       Display::nextMessage();
 
-      // State-Ack (zurückmelden; wir spiegeln den ersten Eintrag)
+      // State-Ack: wir spiegeln weiterhin nur den ersten Text
       if (!App::params.messages.empty()) {
-        String first = App::params.messages[0];
+        String first = App::params.messages[0].text;
         String out = "\"" + first + "\"";
         App::mqtt.publish((Topics::state("text")).c_str(), out.c_str(), true);
       }
       return;
     }
 
-    // sonst: ignorieren
   }
 }
 
@@ -150,7 +173,9 @@ namespace Mqtt {
     ::publishSetKey("effect_in",  App::params.effect_in);
     ::publishSetKey("effect_out", App::params.effect_out);
     ::publishSetKey("effect",     App::params.effect_in); // legacy
-    const String txt = (App::params.messages.empty() ? "Nerd-Display" : App::params.messages[0]);
+    const String txt = App::params.messages.empty()
+      ? String("Nerd-Display")
+      : App::params.messages[0].text;
     ::publishSetKey("text", txt);
   }
 
@@ -161,8 +186,10 @@ namespace Mqtt {
     ::publishStateKeyQuoted("effect_in",  App::params.effect_in);
     ::publishStateKeyQuoted("effect_out", App::params.effect_out);
     ::publishStateKeyQuoted("effect",     App::params.effect_in); // legacy
-    const String txt = (App::params.messages.empty() ? "Nerd-Display" : App::params.messages[0]);
-    ::publishStateKeyQuoted("text", txt);
+    const String txt = App::params.messages.empty()
+      ? String("Nerd-Display")
+      : App::params.messages[0].text;
+    ::publishSetKey("text", txt);
   }
 
   void publishInfo(const String& mode) {
